@@ -5,6 +5,8 @@ namespace App\Http\Livewire;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use \App\Models\Chat_msg;
+use \App\Models\Chat_group;
 
 class Show extends Component
 {
@@ -15,31 +17,37 @@ class Show extends Component
     public $sender;
     public $message;
     public $file;
-    public $not_seen;
+    public $checked_chat_group_id;
+    public $user;
 
     public function render()
     {
         return view('livewire.show', [
             'users' => $this->users,
             'messages' => $this->messages,
-            'sender' => $this->sender
+            'checked_chat_group_id' => $this->checked_chat_group_id,
+            'user' => $this->user
         ]);
     }
 
     public function mountComponent() {
-        if (auth()->user()->is_admin == false) {
-            $this->messages = \App\Models\Message::where('user_id', auth()->id())
-                                                    ->orWhere('receiver', auth()->id())
-                                                    ->orderBy('id', 'DESC')
-                                                    ->get();
-        } else {
-            $this->messages = \App\Models\Message::where('user_id', $this->sender->id)
-                                                    ->orWhere('receiver', $this->sender->id)
-                                                    ->orderBy('id', 'DESC')
-                                                    ->get();
-        }
-        $not_seen = \App\Models\Message::where('user_id', $this->sender->id)->where('receiver', auth()->id());
-        $not_seen->update(['is_seen' => true]);
+        $this->messages = Chat_msg::join('users', 'chat_msgs.created_by', '=', 'users.id')
+        ->where('chat_group_id', $this->checked_chat_group_id)
+        ->orderBy('chat_msgs.created_at', 'desc')
+        ->get();
+
+        $this->users = Chat_group::join('chat_users', 'chat_groups.chat_group_id', '=', 'chat_users.chat_group_id')
+        ->join('users', 'chat_groups.created_by', '=', 'users.id')
+        ->orWhere('chat_users.user_id', '=', auth()->id())
+        ->orWhere('chat_groups.created_by', '=', auth()->id())
+        ->orderBy('chat_groups.chat_group_id', 'DESC')->get();
+
+        $this->user = Chat_group::join('chat_users', 'chat_groups.chat_group_id', '=', 'chat_users.chat_group_id')
+        ->join('users', 'chat_groups.created_by', '=', 'users.id')
+        ->orWhere('chat_users.user_id', '=', auth()->id())
+        ->orWhere('chat_groups.created_by', '=', auth()->id())
+        ->orWhere('chat_groups.chat_group_id', '=', $this->checked_chat_group_id)
+        ->orderBy('chat_groups.chat_group_id', 'DESC')->first();
     }
 
     public function mount()
@@ -48,17 +56,10 @@ class Show extends Component
     }
 
     public function SendMessage() {
-        $new_message = new \App\Models\Message();
+        $new_message = new Chat_msg();
+        $new_message->chat_group_id = $this->checked_chat_group_id;
         $new_message->message = $this->message;
-        $new_message->user_id = auth()->id();
-        $new_message->receiver = $this->sender->id;
-
-        // Deal with the file if uploaded
-        if ($this->file) {
-            $uploaded = $this->uploadFile();
-            $new_message->file = $uploaded[0];
-            $new_message->file_name = $uploaded[1];
-        }
+        $new_message->created_by = auth()->id();
         
         $new_message->save();
         // Clear the message after it's sent

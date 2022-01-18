@@ -1,60 +1,43 @@
 <div>
     <div class="row justify-content-center">
-        @if(auth()->user()->is_admin == true)
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        Users
-                    </div>
-                    <div class="card-body chatbox p-0">
-                        <ul class="list-group list-group-flush">
-                            @foreach($users as $user)
-                                @php
-                                    $not_seen = \App\Models\Message::where('user_id', $user->id)->where('receiver', auth()->id())->where('is_seen', false)->get() ?? null
-                                @endphp
-                                <a href="{{ route('inbox.show', $user->id) }}" class="text-dark link">
-                                    <li class="list-group-item" wire:click="getUser({{ $user->id }})" id="user_{{ $user->id }}">
-                                        <img class="img-fluid avatar" src="https://cdn.pixabay.com/photo/2017/06/13/12/53/profile-2398782_1280.png">
-                                        @if($user->is_online) <i class="fa fa-circle text-success online-icon"></i> @endif {{ $user->name }}
-                                        @if(filled($not_seen))
-                                            <div class="badge badge-success rounded">{{ $not_seen->count() }}</div>
-                                        @endif
-                                    </li>
-                                </a>
-                            @endforeach
-                        </ul>
-                    </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <button onclick="showNewChatBox()">új üzenet</button>
+                </div>
+                <div class="card-body chatbox p-0">
+                    <ul class="list-group list-group-flush">
+                        @foreach($users as $cg)
+                            <a href="{{ route('inbox.show', $cg->chat_group_id) }}" class="text-dark link">
+                                <li class="list-group-item" wire:click="getUser({{ $cg->chat_group_id }})" id="user_{{ $cg->chat_group_id }}">
+                                    <img class="img-fluid avatar" src="https://cdn.pixabay.com/photo/2017/06/13/12/53/profile-2398782_1280.png">
+                                    @if($cg->created_by == auth()->id())
+                                        {{$cg->group_name}}
+                                    @else   
+                                        {{$cg->name}}
+                                    @endif
+                                </li>
+                            </a>
+                        @endforeach
+                    </ul>
                 </div>
             </div>
-        @endif
+        </div>
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    {{ $sender->name }}
+                @if($user->created_by == auth()->id())
+                    {{$user->group_name}}
+                @else   
+                    {{$user->name}}
+                @endif
                 </div>
                 <div class="card-body message-box" wire:poll.10ms="mountComponent()">
                     @if(filled($messages))
                         @foreach($messages as $message)
-                            <div class="single-message @if($message->user_id !== auth()->id()) received @else sent @endif">
-                                <p class="font-weight-bolder my-0">{{ $message->user->name }}</p>
+                            <div class="single-message @if($message->created_by !== auth()->id()) received @else sent @endif">
+                                <p class="font-weight-bolder my-0">{{ $message->name }}</p>
                                 <p class="my-0">{{ $message->message }}</p>
-                                @if (isPhoto($message->file))
-                                    <div class="w-100 my-2">
-                                        <img class="img-fluid rounded" loading="lazy" style="height: 250px" src="{{ $message->file }}">
-                                    </div>
-                                @elseif (isVideo($message->file))
-                                    <div class="w-100 my-2">
-                                        <video style="height: 250px" class="img-fluid rounded" controls>
-                                            <source src="{{ $message->file }}">
-                                        </video>
-                                    </div>
-                                @elseif ($message->file)
-                                    <div class="w-100 my-2">
-                                        <a href="{{ $message->file}}" class="bg-light p-2 rounded-pill" target="_blank" download><i class="fa fa-download"></i> 
-                                            {{ $message->file_name }}
-                                        </a>
-                                    </div>
-                                @endif
                                 <small class="text-muted w-100">Sent <em>{{ $message->created_at }}</em></small>
                             </div>
                         @endforeach
@@ -100,4 +83,20 @@
             </div>
         </div>
     </div>
+</div>
+<!-- Modal -->
+<div id="new_chat_box" class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Chat</h5>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="new_chat_username" placeholder="Kezd el begépleni a cimzett vagy a csoport nevét">
+      </div>
+      <div class="modal-footer">
+        <button onclick="createNewChat()" class="btn btn-primary">Üzenet küldése</button>
+      </div>
+    </div>
+  </div>
 </div>

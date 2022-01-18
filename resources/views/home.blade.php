@@ -2,6 +2,6 @@
 
 @section('content')
 <div class="container">
-    @livewire('message', ['users' => $users, 'messages' => $messages ?? null])
+    @livewire('message', ['users' => $chat_groups])
 </div>
 @endsection

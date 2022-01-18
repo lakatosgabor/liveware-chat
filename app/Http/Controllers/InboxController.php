@@ -6,47 +6,44 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use App\Models\User;
 use \App\Models\Message;
+use \App\Models\Chat_group;
 
 class InboxController extends Controller
 {
 
+    
     public function index() {
         // Show just the users and not the admins as well
-        $users = User::where('is_admin', false)->orderBy('id', 'DESC')->get();
-
-        if (auth()->user()->is_admin == false) {
-            $messages = Message::where('user_id', auth()->id())->orWhere('receiver', auth()->id())->orderBy('id', 'DESC')->get();
-        }
+        $chat_groups = Chat_group::join('chat_users', 'chat_groups.chat_group_id', '=', 'chat_users.chat_group_id')
+        ->join('users', 'chat_groups.created_by', '=', 'users.id')
+        ->orWhere('chat_users.user_id', '=', auth()->id())
+        ->orWhere('chat_groups.created_by', '=', auth()->id())
+        ->orderBy('chat_groups.chat_group_id', 'DESC')->get();
 
         return view('home', [
-            'users' => $users,
-            'messages' => $messages ?? null
+            'chat_groups' => $chat_groups
         ]);
+        
     }
 
     public function show($id) {
-        if (auth()->user()->is_admin == false) {
-            abort(404);
-        }
+        $chat_groups = Chat_group::join('chat_users', 'chat_groups.chat_group_id', '=', 'chat_users.chat_group_id')
+        ->join('users', 'chat_groups.created_by', '=', 'users.id')
+        ->orWhere('chat_users.user_id', '=', auth()->id())
+        ->orWhere('chat_groups.created_by', '=', auth()->id())
+        ->orderBy('chat_groups.chat_group_id', 'DESC')->get();
 
-        $sender = User::findOrFail($id);
-
-        $users = User::with(['message' => function($query) {
-            return $query->orderBy('created_at', 'DESC');
-        }])->where('is_admin', false)
-            ->orderBy('id', 'DESC')
-            ->get();
-
-        if (auth()->user()->is_admin == false) {
-            $messages = Message::where('user_id', auth()->id())->orWhere('receiver', auth()->id())->orderBy('id', 'DESC')->get();
-        } else {
-            $messages = Message::where('user_id', $sender)->orWhere('receiver', $sender)->orderBy('id', 'DESC')->get();
-        }
-
+        $user = Chat_group::join('chat_users', 'chat_groups.chat_group_id', '=', 'chat_users.chat_group_id')
+        ->join('users', 'chat_groups.created_by', '=', 'users.id')
+        ->orWhere('chat_users.user_id', '=', auth()->id())
+        ->orWhere('chat_groups.created_by', '=', auth()->id())
+        ->orWhere('chat_groups.chat_group_id', '=', $id)
+        ->orderBy('chat_groups.chat_group_id', 'DESC')->first();
+        
         return view('show', [
-            'users' => $users,
-            'messages' => $messages,
-            'sender' => $sender,
+            'chat_groups' => $chat_groups,
+            'checked_chat_group_id' => $id,
+            'user' => $user
         ]);
     }
 
